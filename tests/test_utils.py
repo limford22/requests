@@ -881,6 +881,13 @@ def test_should_bypass_proxies_no_proxy_domain_boundary(url, expected):
         ("http://google.com:5000/v1.0/", False, None),
         ("http://mylocalhostname:5000/v1.0/", True, "<local>"),
         ("http://192.168.0.1/", False, ""),
+        ("http://google.com/", True, "google.com"),
+        ("http://google.com.evil.com/", False, "google.com"),
+        ("http://sub.example.com/", True, "*.example.com"),
+        ("http://sub.example.com.attacker.org/", False, "*.example.com"),
+        ("http://192.168.1.1/", True, "192.168.1.1"),
+        ("http://192.168.1.100/", False, "192.168.1.1"),
+        ("http://docs.python.org/", True, "google.com; *.python.org"),
     ),
 )
 def test_should_bypass_proxies_win_registry(url, expected, override, monkeypatch):
