@@ -960,6 +960,52 @@ def test_should_bypass_proxies_win_registry_bad_values(monkeypatch):
     assert should_bypass_proxies("http://172.16.1.1/", None) is False
 
 
+@pytest.mark.skipif(os.name != "nt", reason="Test only on Windows")
+@pytest.mark.parametrize(
+    "host, override, expected",
+    (
+        ("google.com", "google.com", True),
+        ("google.com.evil.com", "google.com", False),
+        ("sub.example.com", "*.example.com", True),
+        ("sub.example.com.attacker.org", "*.example.com", False),
+        ("192.168.1.1", "192.168.1.1", True),
+        ("192.168.1.100", "192.168.1.1", False),
+        ("docs.python.org", "google.com; *.python.org", True),
+        ("myintranethost", "<local>", True),
+        ("myintranethost.domain.com", "<local>", False),
+        ("google.com:8080", "google.com", True),
+        ("sub.example.com:443", "*.example.com", True),
+    ),
+)
+def test_proxy_bypass_registry_boundary_cases(host, override, expected, monkeypatch):
+    """Ensure proxy_bypass_registry correctly handles domain boundaries,
+    wildcards, whitespace, port numbers, and <local> entries without
+    unanchored regex matching.
+    """
+    import winreg
+    from requests.utils import proxy_bypass_registry
+
+    class RegHandle:
+        def Close(self):
+            pass
+
+    ie_settings = RegHandle()
+
+    def OpenKey(key, subkey):
+        return ie_settings
+
+    def QueryValueEx(key, value_name):
+        if key is ie_settings:
+            if value_name == "ProxyEnable":
+                return [1]
+            elif value_name == "ProxyOverride":
+                return [override]
+
+    monkeypatch.setattr(winreg, "OpenKey", OpenKey)
+    monkeypatch.setattr(winreg, "QueryValueEx", QueryValueEx)
+    assert proxy_bypass_registry(host) is expected
+
+
 @pytest.mark.parametrize(
     "env_name, value",
     (
