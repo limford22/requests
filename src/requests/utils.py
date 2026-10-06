@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import codecs
 import contextlib
+import fnmatch
 import io
 import os
 import re
@@ -116,21 +117,23 @@ if sys.platform == "win32":
         if not proxyEnable or not proxyOverride:
             return False
 
+        # Strip port if host contains one
+        if ":" in host:
+            host = host.split(":", 1)[0]
+
         # make a check value list from the registry entry: replace the
         # '<local>' string by the localhost entry and the corresponding
         # canonical entry.
         proxyOverride = proxyOverride.split(";")
-        # filter out empty strings to avoid re.match return true in the following code.
-        proxyOverride = filter(None, proxyOverride)
         # now check if we match one of the registry values.
         for test in proxyOverride:
+            test = test.strip()
+            if not test:
+                continue
             if test == "<local>":
                 if "." not in host:
                     return True
-            test = test.replace(".", r"\.")  # mask dots
-            test = test.replace("*", r".*")  # change glob sequence
-            test = test.replace("?", r".")  # change glob char
-            if re.match(test, host, re.I):
+            elif fnmatch.fnmatch(host.lower(), test.lower()):
                 return True
         return False
 
